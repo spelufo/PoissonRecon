@@ -1,3 +1,4 @@
+PV_TARGET=PoissonVesuvius.so
 PR_TARGET=PoissonRecon
 PRC_TARGET=PoissonReconClient
 PRS_TARGET=PoissonReconServer
@@ -10,6 +11,7 @@ AV_TARGET=AdaptiveTreeVisualization
 CP_TARGET=ChunkPLY
 RE_TARGET=ReconExample
 
+PV_SOURCE=PoissonVesuvius.cpp
 PR_SOURCE=PoissonRecon.cpp
 PRC_SOURCE=PoissonReconClient.cpp
 PRS_SOURCE=PoissonReconServer.cpp
@@ -26,15 +28,15 @@ COMPILER ?= gcc
 #COMPILER ?= clang
 
 ifeq ($(COMPILER),gcc)
-	CFLAGS += -fopenmp -Wno-deprecated -std=c++17 -pthread -Wno-invalid-offsetof
+	CFLAGS += -fopenmp -Wfatal-errors -Wno-deprecated -std=c++17 -pthread -Wno-invalid-offsetof -Wno-stringop-overflow
 	LFLAGS += -lgomp -lstdc++ -lpthread
 else ifeq ($(COMPILER),gcc-11)
-	CFLAGS += -fopenmp -Wno-deprecated -std=c++17 -pthread -Wno-invalid-offsetof -Werror=strict-aliasing -Wno-nonnull
+	CFLAGS += -fopenmp -Wfatal-errors -Wno-deprecated -std=c++17 -pthread -Wno-invalid-offsetof -Wno-stringop-overflow -Werror=strict-aliasing -Wno-nonnull
 	LFLAGS += -lgomp -lstdc++ -lpthread
 else
-# 	CFLAGS += -fopenmp=libiomp5 -Wno-deprecated -Wno-write-strings -std=c++17 -Wno-invalid-offsetof
+# 	CFLAGS += -fopenmp=libiomp5 -Wfatal-errors -Wno-deprecated -Wno-write-strings -std=c++17 -Wno-invalid-offsetof -Wno-stringop-overflow
 # 	LFLAGS += -liomp5 -lstdc++
-	CFLAGS += -Wno-deprecated -std=c++17 -pthread -Wno-invalid-offsetof -Wno-dangling-else
+	CFLAGS += -Wfatal-errors -Wno-deprecated -std=c++17 -pthread -Wno-invalid-offsetof -Wno-stringop-overflow -Wno-dangling-else
 	LFLAGS += -lstdc++
 endif
 LFLAGS_IMG += -lz -lpng -ljpeg
@@ -66,6 +68,7 @@ endif
 
 MD=mkdir
 
+PV_OBJECTS=$(addprefix $(BIN), $(addsuffix .o, $(basename $(PV_SOURCE))))
 PR_OBJECTS=$(addprefix $(BIN), $(addsuffix .o, $(basename $(PR_SOURCE))))
 PRC_OBJECTS=$(addprefix $(BIN), $(addsuffix .o, $(basename $(PRC_SOURCE))))
 PRS_OBJECTS=$(addprefix $(BIN), $(addsuffix .o, $(basename $(PRS_SOURCE))))
@@ -82,6 +85,7 @@ RE_OBJECTS=$(addprefix $(BIN), $(addsuffix .o, $(basename $(RE_SOURCE))))
 all: CFLAGS += $(CFLAGS_RELEASE)
 all: LFLAGS += $(LFLAGS_RELEASE)
 all: make_dir
+all: $(BIN)$(PV_TARGET)
 all: $(BIN)$(PR_TARGET)
 all: $(BIN)$(PRC_TARGET)
 all: $(BIN)$(PRS_TARGET)
@@ -97,6 +101,7 @@ all: $(BIN)$(RE_TARGET)
 debug: CFLAGS += $(CFLAGS_DEBUG)
 debug: LFLAGS += $(LFLAGS_DEBUG)
 debug: make_dir
+debug: $(BIN)$(PV_TARGET)
 debug: $(BIN)$(PR_TARGET)
 debug: $(BIN)$(PRC_TARGET)
 debug: $(BIN)$(PRS_TARGET)
@@ -108,6 +113,11 @@ debug: $(BIN)$(IS_TARGET)
 debug: $(BIN)$(AV_TARGET)
 debug: $(BIN)$(CP_TARGET)
 debug: $(BIN)$(RE_TARGET)
+
+poissonvesuvius: CFLAGS += $(CFLAGS_RELEASE) -shared -fPIC
+poissonvesuvius: LFLAGS += $(LFLAGS_RELEASE)
+poissonvesuvius: make_dir
+poissonvesuvius: $(BIN)$(PV_TARGET)
 
 poissonrecon: CFLAGS += $(CFLAGS_RELEASE)
 poissonrecon: LFLAGS += $(LFLAGS_RELEASE)
@@ -164,6 +174,7 @@ reconexample: make_dir
 reconexample: $(BIN)$(RE_TARGET)
 
 clean:
+	rm -rf $(BIN)$(PV_TARGET)
 	rm -rf $(BIN)$(PR_TARGET)
 	rm -rf $(BIN)$(PRC_TARGET)
 	rm -rf $(BIN)$(PRS_TARGET)
@@ -190,7 +201,11 @@ clean:
 
 
 make_dir:
-	$(MD) -p $(BIN)
+	@ $(MD) -p $(BIN)
+
+$(BIN)$(PV_TARGET): $(PV_OBJECTS)
+	cd PNG  && make COMPILER=$(COMPILER)
+	$(CXX) -pthread -shared -o $@ $(PV_OBJECTS) -L$(BIN) $(LFLAGS) $(LFLAGS_IMG)
 
 $(BIN)$(PR_TARGET): $(PR_OBJECTS)
 	cd PNG  && make COMPILER=$(COMPILER)
